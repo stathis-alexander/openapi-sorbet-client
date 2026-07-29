@@ -1,0 +1,50 @@
+# typed: strict
+# frozen_string_literal: true
+
+module <%= module_name %>
+  module Models
+    class <%= OpenapiSorbetClient::Naming.schema_class_name(schema.name) %> < T::Struct
+      extend T::Sig
+      include WireHelpers
+
+<% schema.properties.each do |property| -%>
+      const :<%= property.name %>, <%= emitter.property_type(property, defined_names: defined_names) %>
+<% end -%>
+
+      WIRE_KEY_MAP = T.let(
+        {
+<% schema.properties.each do |property| -%>
+          <%= property.name %>: <%= property.wire_key.inspect %>,
+<% end -%>
+        }.freeze,
+        T::Hash[Symbol, String]
+      )
+
+      WIRE_TYPE_MAP = T.let(
+        {
+<% schema.properties.each do |property| -%>
+          <%= property.name %>: <%= emitter.wire_type_descriptor(property.schema) %>,
+<% end -%>
+        }.freeze,
+        T::Hash[Symbol, T.untyped]
+      )
+
+      WIRE_REQUIRED_MAP = T.let(
+        {
+<% schema.properties.each do |property| -%>
+          <%= property.name %>: <%= property.required == true %>,
+<% end -%>
+        }.freeze,
+        T::Hash[Symbol, T::Boolean]
+      )
+
+      sig do
+        params(payload: T::Hash[String, T.untyped])
+          .returns(<%= OpenapiSorbetClient::Naming.schema_class_name(schema.name) %>)
+      end
+      def self.from_wire(payload)
+        from_wire_payload(payload)
+      end
+    end
+  end
+end

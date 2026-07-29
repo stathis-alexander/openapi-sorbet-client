@@ -1,0 +1,32 @@
+openapi: 3.0.3
+info:
+  title: Composition
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Animal:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    Dog:
+      required: [breed]
+      allOf:
+        - $ref: "#/components/schemas/Animal"
+        - type: object
+          properties:
+            breed:
+              type: string
+    Cat:
+      allOf:
+        - $ref: "#/components/schemas/Animal"
+        - type: object
+          properties:
+            lives:
+              type: integer
+    Pet:
+      oneOf:
+        - $ref: "#/components/schemas/Dog"
+        - $ref: "#/components/schemas/Cat"

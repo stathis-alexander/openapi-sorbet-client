@@ -1,0 +1,16 @@
+openapi: 3.0.3
+info:
+  title: Inline Nameless
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Wrapper:
+      type: object
+      required: [Meta]
+      properties:
+        Meta:
+          type: object
+          properties:
+            Count:
+              type: integer

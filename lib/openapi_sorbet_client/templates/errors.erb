@@ -1,0 +1,34 @@
+# typed: strict
+# frozen_string_literal: true
+
+module <%= module_name %>
+  class Error < StandardError
+    extend T::Sig
+
+    sig { returns(T.nilable(Integer)) }
+    attr_reader :status
+
+    sig { returns(T.nilable(String)) }
+    attr_reader :body
+
+    sig { returns(T.untyped) }
+    attr_reader :parsed
+
+    sig do
+      params(
+        message: String,
+        status: T.nilable(Integer),
+        body: T.nilable(String),
+        parsed: T.untyped
+      ).void
+    end
+    def initialize(message = "", status: nil, body: nil, parsed: nil)
+      @status = T.let(status, T.nilable(Integer))
+      @body = T.let(body, T.nilable(String))
+      @parsed = T.let(parsed, T.untyped)
+      super(message)
+    end
+  end
+
+  class APIError < Error; end
+end

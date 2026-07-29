@@ -1,0 +1,235 @@
+---
+openapi: 3.0.1
+info:
+  title: Tax Services v2
+  description: Trimmed fixture for offline integration tests.
+  version: '1.0'
+servers:
+- url: https://api.cchaxcess.com/taxservices/oiptax
+paths:
+  "/api/v1/Returns":
+    get:
+      tags:
+      - Tax admin
+      summary: Retrieve the list of returns.
+      description: Retrieve the list of returns.
+      operationId: get-returns
+      parameters:
+      - name: "$filter"
+        in: query
+        description: "$filter"
+        schema:
+          type: string
+      - name: "$orderby"
+        in: query
+        description: "$orderby"
+        schema:
+          type: string
+      - name: Authorization
+        in: header
+        description: Authorization
+        schema:
+          type: string
+      - name: Security
+        in: header
+        description: Security
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ReturnsResponse"
+        '400':
+          description: Bad Request. Validation exception. See content for more details
+        '404':
+          description: Returns not found
+        '500':
+          description: Internal Server Error. See content for more details
+  "/api/v1/CalculateReturn":
+    post:
+      tags:
+      - Tax admin
+      summary: Submit a list of returns for calculation
+      description: Submit a list of returns for calculation
+      operationId: post-calculate-return
+      parameters:
+      - name: Authorization
+        in: header
+        description: Authorization
+        schema:
+          type: string
+      - name: Security
+        in: header
+        description: Security
+        schema:
+          type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CalculateReturnRequest"
+      responses:
+        '200':
+          description: Successful submission
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BatchSubmissionResponse"
+        '400':
+          description: Bad Request. All returns in the list failed the validation.
+            See content for more details
+        '500':
+          description: Internal Server Error. See content for more details
+components:
+  schemas:
+    BatchFileResult:
+      required:
+      - IsError
+      - Messages
+      - SubItemExecutionIDs
+      type: object
+      properties:
+        IsError:
+          type: boolean
+          description: "'true' if return did not pass the validation, otherwise 'false'."
+        Messages:
+          type: array
+          items:
+            type: string
+          description: Collection of messages. Could be error validation or success
+            message.
+        SubItemExecutionIDs:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Usually contain one unique identifier which correspond to the
+            batch item guid.
+        FileGroupID:
+          type: integer
+          description: Not used. default to 0.
+          format: int32
+      additionalProperties: false
+    BatchSubmissionResponse:
+      required:
+      - BatchFileResults
+      - ExecutionID
+      type: object
+      properties:
+        ExecutionID:
+          type: string
+          description: Batch Guid
+          format: uuid
+        BatchFileResults:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BatchFileResult"
+          description: List of batch items based from the number of returns included
+            in the batch.
+      additionalProperties: false
+    CalculateReturnRequest:
+      required:
+      - ConfigurationXml
+      - ReturnId
+      type: object
+      properties:
+        ReturnId:
+          type: array
+          items:
+            type: string
+          description: List of return ids. Should have the same tax year.
+        ConfigurationXml:
+          minLength: 1
+          type: string
+          description: Batch calculation option in xml format.
+      additionalProperties: false
+    ReturnsResponse:
+      type: object
+      properties:
+        Returns:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TaxReturnInfo"
+          description: list of returns information
+          nullable: true
+        TotalCount:
+          type: integer
+          description: Totla count of returns
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: Result set of  returns
+    TaxReturnInfo:
+      type: object
+      properties:
+        OfficeName:
+          type: string
+          description: Office Name
+          nullable: true
+        BusinessUnitName:
+          type: string
+          description: Business Unit name
+          nullable: true
+        TaxYear:
+          type: string
+          description: Tax Year
+          nullable: true
+        ReturnID:
+          type: string
+          description: Return Id
+          nullable: true
+        ReturnGroupName:
+          type: string
+          description: Return Group name
+          nullable: true
+        ReturnType:
+          type: string
+          description: "Return Type can be one of the following\r\n- 1040 Individual,
+            \r\n- 1041 Fiduciary\r\n..."
+          nullable: true
+        Description:
+          type: string
+          description: Return description
+          nullable: true
+        Signer:
+          type: string
+          description: Name of the signer
+          nullable: true
+        ClientName:
+          type: string
+          description: Client Name
+          nullable: true
+        YearEnd:
+          type: string
+          description: Year End
+          nullable: true
+        ReturnConfigurationSetName:
+          type: string
+          description: Return configuration set name
+          nullable: true
+        ReturnStatus:
+          type: string
+          description: Return status
+          nullable: true
+        LastModifiedDate:
+          type: string
+          description: Last Modified Date. Time is in UTC.
+          format: date-time
+      additionalProperties: false
+      description: Returns info
+  securitySchemes:
+    apiKeyHeader:
+      type: apiKey
+      name: IntegratorKey
+      in: header
+    apiKeyQuery:
+      type: apiKey
+      name: subscription-key
+      in: query
+security:
+- apiKeyHeader: []
+- apiKeyQuery: []

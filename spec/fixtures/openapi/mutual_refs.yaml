@@ -1,0 +1,21 @@
+openapi: 3.0.3
+info:
+  title: Mutual Refs
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    NodeA:
+      type: object
+      properties:
+        Other:
+          $ref: "#/components/schemas/NodeB"
+        Label:
+          type: string
+    NodeB:
+      type: object
+      properties:
+        Other:
+          $ref: "#/components/schemas/NodeA"
+        Label:
+          type: string

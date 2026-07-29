@@ -1,0 +1,33 @@
+openapi: 3.0.3
+info:
+  title: Enums and nullable values
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Status:
+      type: string
+      enum: [available, pending]
+    CreatedOn:
+      type: string
+      format: date
+    EventId:
+      type: string
+      format: uuid
+    EventIds:
+      type: array
+      items:
+        $ref: "#/components/schemas/EventId"
+    Count:
+      type: integer
+      format: int64
+    Ratio:
+      type: number
+    Enabled:
+      type: boolean
+    Listing:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/Status"
+          nullable: true

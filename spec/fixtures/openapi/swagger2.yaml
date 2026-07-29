@@ -1,0 +1,74 @@
+swagger: "2.0"
+info:
+  title: Legacy Petstore
+  version: "1.0.0"
+host: petstore.example.com
+basePath: /v2
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: api_key
+    in: header
+security:
+  - api_key: []
+paths:
+  /pets/{petId}:
+    get:
+      operationId: get-pet
+      summary: Fetch a pet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: "#/definitions/Pet"
+        "404":
+          description: missing
+  /pets:
+    post:
+      operationId: create-pet
+      summary: Create a pet
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/NewPet"
+      responses:
+        "200":
+          description: created
+          schema:
+            $ref: "#/definitions/Pet"
+definitions:
+  Pet:
+    type: object
+    required:
+      - id
+      - name
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      tag:
+        type: string
+        x-nullable: true
+  NewPet:
+    type: object
+    required:
+      - name
+    properties:
+      name:
+        type: string
+      tag:
+        type: string

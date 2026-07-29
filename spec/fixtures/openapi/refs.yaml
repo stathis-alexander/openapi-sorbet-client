@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info:
+  title: References
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        tagName:
+          $ref: "#/components/schemas/Tag"
+    Tag:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string

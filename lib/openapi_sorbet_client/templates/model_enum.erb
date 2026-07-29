@@ -1,0 +1,29 @@
+# typed: strict
+# frozen_string_literal: true
+
+module <%= module_name %>
+  module Models
+    class <%= OpenapiSorbetClient::Naming.schema_class_name(schema.name) %> < T::Enum
+      extend T::Sig
+
+      enums do
+<% emitter.enum_members(schema).each do |constant_name, value| -%>
+        <%= constant_name %> = new(<%= value.inspect %>)
+<% end -%>
+      end
+
+      sig do
+        params(value: String)
+          .returns(<%= OpenapiSorbetClient::Naming.schema_class_name(schema.name) %>)
+      end
+      def self.from_wire(value)
+        deserialize(value)
+      end
+
+      sig { returns(String) }
+      def to_wire
+        serialize
+      end
+    end
+  end
+end

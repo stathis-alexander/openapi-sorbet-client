@@ -1,0 +1,186 @@
+# typed: strict
+# frozen_string_literal: true
+
+require "erb"
+require "faraday"
+require "json"
+require "uri"
+
+module <%= module_name %>
+  class Client
+    extend T::Sig
+
+<% api_key_schemes = emitter.api_key_schemes -%>
+    sig do
+      params(
+        base_url: String,
+<% api_key_schemes.each do |scheme| -%>
+        <%= emitter.api_key_kwarg(scheme) %>: T.nilable(String),
+<% end -%>
+        timeout: T.nilable(Numeric),
+        connection: T.nilable(Faraday::Connection)
+      ).void
+    end
+    def initialize(
+      base_url:,
+<% api_key_schemes.each do |scheme| -%>
+      <%= emitter.api_key_kwarg(scheme) %>: nil,
+<% end -%>
+      timeout: nil,
+      connection: nil
+    )
+      @connection = T.let(
+        connection || build_connection(base_url, timeout),
+        Faraday::Connection
+      )
+<% api_key_schemes.each do |scheme| -%>
+      apply_api_key!(:<%= emitter.api_key_kwarg(scheme) %>, <%= emitter.api_key_kwarg(scheme) %>, <%= scheme.api_key_name.inspect %>, <%= scheme.location.inspect %>)
+<% end -%>
+    end
+
+<% document.operations.each do |operation| -%>
+<%= emitter.render_operation_method(operation) %>
+<% end -%>
+
+    private
+
+    #: (String base_url, Numeric? timeout) -> Faraday::Connection
+    def build_connection(base_url, timeout)
+      Faraday.new(url: base_url) do |faraday|
+        faraday.options.timeout = timeout if timeout
+        faraday.request :url_encoded
+        if defined?(Faraday::Multipart)
+          faraday.request :multipart
+        elsif defined?(Faraday::Request::Multipart)
+          faraday.request :multipart
+        end
+        faraday.adapter Faraday.default_adapter
+      end
+    end
+
+    #: (Symbol kwarg_name, String? value, String wire_name, Symbol location) -> void
+    def apply_api_key!(kwarg_name, value, wire_name, location)
+      return if value.nil?
+
+      case location
+      when :header
+        @connection.headers[wire_name] = value
+      when :query
+        @connection.params[wire_name] = value
+      when :cookie
+        existing = @connection.headers["Cookie"].to_s
+        cookie = "#{wire_name}=#{value}"
+        @connection.headers["Cookie"] = existing.empty? ? cookie : "#{existing}; #{cookie}"
+      else
+        raise ArgumentError, "unsupported api key location for #{kwarg_name}: #{location}"
+      end
+    end
+
+    #: (String path_template, Hash[Symbol, String] path_params) -> String
+    def interpolate_path(path_template, path_params)
+      path_template.gsub(/\{([^}]+)\}/) do
+        key = Regexp.last_match(1)
+        value = path_params[key.to_sym]
+        raise ArgumentError, "missing path parameter: #{key}" if value.nil?
+
+        ERB::Util.url_encode(value.to_s)
+      end
+    end
+
+    #: (Symbol method, String path, ?query: Hash[String, untyped], ?headers: Hash[String, String], ?body: untyped) -> Faraday::Response
+    def request(method, path, query: {}, headers: {}, body: nil)
+      @connection.run_request(method, path, body, headers) do |req|
+        query.each do |key, value|
+          next if value.nil?
+
+          req.params[key] = value
+        end
+      end
+    end
+
+    #: (Faraday::Response response, untyped success_schema, ?Hash[Integer | Symbol, untyped] error_schemas) -> untyped
+    def handle_response(response, success_schema, error_schemas = {})
+      unless response.status >= 200 && response.status < 300
+        parsed = parse_error_payload(response, error_schemas)
+        raise APIError.new(
+          "HTTP #{response.status}",
+          status: response.status,
+          body: response.body&.to_s,
+          parsed: parsed
+        )
+      end
+
+      return response.body.to_s if success_schema == :raw
+
+      payload = JSON.parse(response.body)
+      hydrate_payload(payload, success_schema)
+    end
+
+    #: (Faraday::Response response, Hash[Integer | Symbol, untyped] error_schemas) -> untyped
+    def parse_error_payload(response, error_schemas)
+      schema = error_schemas[response.status] || error_schemas[:default]
+      return nil if schema.nil? || schema == :raw
+
+      payload = JSON.parse(response.body)
+      hydrate_payload(payload, schema)
+    rescue StandardError
+      nil
+    end
+
+    #: (untyped payload, untyped schema) -> untyped
+    def hydrate_payload(payload, schema)
+      return payload if schema == :json
+
+      if schema.is_a?(Hash) && schema.key?(:union)
+        schema[:union].each do |member|
+          begin
+            return hydrate_payload(payload, member)
+          rescue StandardError
+            next
+          end
+        end
+        return payload
+      end
+
+      return schema.from_wire(payload) if schema.respond_to?(:from_wire)
+      return payload.map { |item| hydrate_payload(item, schema.first) } if schema.is_a?(Array)
+
+      payload
+    end
+
+    #: (untyped body, String content_type) -> [untyped, Hash[String, String]]
+    def encode_body(body, content_type)
+      return [nil, {}] if body.nil?
+
+      payload = body.respond_to?(:to_wire) ? body.to_wire : body
+
+      case content_type
+      when "multipart/form-data"
+        if defined?(Faraday::Multipart) || defined?(Faraday::Request::Multipart)
+          [payload, {}]
+        else
+          [
+            URI.encode_www_form(stringify_form_values(payload)),
+            { "Content-Type" => "application/x-www-form-urlencoded" }
+          ]
+        end
+      when "application/x-www-form-urlencoded"
+        [
+          URI.encode_www_form(stringify_form_values(payload)),
+          { "Content-Type" => "application/x-www-form-urlencoded" }
+        ]
+      else
+        [
+          JSON.generate(payload),
+          { "Content-Type" => "application/json" }
+        ]
+      end
+    end
+
+    #: (untyped payload) -> Hash[String, String]
+    def stringify_form_values(payload)
+      hash = payload.is_a?(Hash) ? payload : {}
+      hash.transform_keys(&:to_s).transform_values { |value| value.nil? ? "" : value.to_s }
+    end
+  end
+end

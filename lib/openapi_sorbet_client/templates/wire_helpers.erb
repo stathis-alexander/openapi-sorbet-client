@@ -1,0 +1,71 @@
+# typed: strict
+# frozen_string_literal: true
+
+module <%= module_name %>
+  module Models
+    module WireHelpers
+      extend T::Sig
+
+      module ClassMethods
+        extend T::Sig
+
+        sig { params(payload: T::Hash[String, T.untyped]).returns(T.untyped) }
+        def from_wire_payload(payload)
+          kwargs = T.let({}, T::Hash[Symbol, T.untyped])
+          self::WIRE_KEY_MAP.each do |ruby_key, wire_key|
+            next unless payload.key?(wire_key)
+
+            descriptor = self::WIRE_TYPE_MAP.fetch(ruby_key)
+            kwargs[ruby_key] = WireHelpers.deserialize_value(payload[wire_key], descriptor)
+          end
+          new(**kwargs)
+        end
+      end
+
+      def self.included(base)
+        base.extend(ClassMethods)
+      end
+
+      sig { returns(T::Hash[String, T.untyped]) }
+      def to_wire
+        result = T.let({}, T::Hash[String, T.untyped])
+        self.class::WIRE_KEY_MAP.each do |ruby_key, wire_key|
+          value = public_send(ruby_key)
+          next if value.nil? && !self.class::WIRE_REQUIRED_MAP.fetch(ruby_key)
+
+          result[wire_key] = WireHelpers.serialize_value(value)
+        end
+        result
+      end
+
+      sig { params(value: T.untyped, descriptor: T.untyped).returns(T.untyped) }
+      def self.deserialize_value(value, descriptor)
+        return value if value.nil? || descriptor.nil?
+        return value.map { |item| deserialize_value(item, descriptor.first) } if descriptor.is_a?(Array)
+
+        klass = constantize(descriptor)
+        return klass.deserialize(value) if klass <= T::Enum
+        return klass.from_wire(value) if value.is_a?(Hash) && klass.respond_to?(:from_wire)
+
+        value
+      end
+
+      sig { params(value: T.untyped).returns(T.untyped) }
+      def self.serialize_value(value)
+        return value.map { |item| serialize_value(item) } if value.is_a?(Array)
+        return value.transform_values { |item| serialize_value(item) } if value.is_a?(Hash)
+        return value.serialize if value.is_a?(T::Enum)
+        return value.to_wire if value.is_a?(T::Struct) && value.respond_to?(:to_wire)
+
+        value
+      end
+
+      sig { params(name: String).returns(T::Module[T.anything]) }
+      def self.constantize(name)
+        name.split("::").reject(&:empty?).inject(Object) do |namespace, constant_name|
+          namespace.const_get(constant_name)
+        end
+      end
+    end
+  end
+end

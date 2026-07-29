@@ -1,0 +1,9 @@
+.bundle/
+vendor/bundle/
+tmp/
+generated/
+*.gem
+.DS_Store
+
+.worktrees/
+.superpowers/

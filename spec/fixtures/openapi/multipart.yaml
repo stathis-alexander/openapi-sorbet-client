@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info: { title: Uploads, version: "1" }
+paths:
+  /documents:
+    post:
+      operationId: upload-document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                caption: { type: string }
+            encoding:
+              file:
+                contentType: application/octet-stream
+      responses:
+        "200":
+          description: uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: string }
