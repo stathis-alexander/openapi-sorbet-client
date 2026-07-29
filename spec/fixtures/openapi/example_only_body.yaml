@@ -1,0 +1,27 @@
+openapi: 3.0.1
+info:
+  title: Auth Login Example-Only
+  version: "1.0"
+servers:
+  - url: https://example.com
+paths:
+  /v1.0/Authenticate:
+    post:
+      operationId: Authenticates-the-user
+      requestBody:
+        content:
+          application/json:
+            example:
+              UserName: String content
+              UserSid: String content
+              Password: String content
+              Realm: String content
+              AdfsPilotLoginCode: String content
+              IsInternal: true
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              example:
+                Token: abc

@@ -22,13 +22,14 @@ module OpenapiSorbetClient
     ].freeze
 
     class << self
-      def parse(path)
-        new(path).parse
+      def parse(path, synthesize_from_examples: true)
+        new(path, synthesize_from_examples: synthesize_from_examples).parse
       end
     end
 
-    def initialize(path)
+    def initialize(path, synthesize_from_examples: true)
       @path = path
+      @synthesize_from_examples = synthesize_from_examples
       @schema_definitions = {}
       @schemas = {}
       @resolving = Set.new
@@ -203,9 +204,14 @@ module OpenapiSorbetClient
     end
 
     def parse_media_schema(media_type, synthetic_name)
-      return unless media_type && media_type["schema"]
+      return unless media_type
 
-      definition = media_type.fetch("schema")
+      definition = media_type["schema"]
+      if definition.nil? && @synthesize_from_examples
+        definition = ExampleSchema.from_media_type(media_type)
+      end
+      return unless definition
+
       return parse_schema(definition) unless anonymous_named_schema?(definition)
       return @schemas.fetch(synthetic_name) if @schemas.key?(synthetic_name)
 

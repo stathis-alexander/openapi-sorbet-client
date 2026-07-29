@@ -23,6 +23,7 @@ bundle exec openapi-sorbet-client generate \
 | `--output` | Directory where the generated gem tree is written |
 | `--module` | Ruby module name for the client (e.g. `OipTax`) |
 | `--gem-name` | Gem name and require path (e.g. `oip_tax_client`) |
+| `--synthesize-from-examples` / `--no-synthesize-from-examples` | If a request/response media type has no `schema`, infer one from `example` / `examples` (default: **on**) |
 
 On success the CLI prints `Generated <gem-name> in <output>`.
 
@@ -38,6 +39,8 @@ Each run emits a standalone gem with:
 - Typed errors on non-2xx responses (`status`, raw body, optional parsed error DTO)
 
 Document-level security schemes become default Faraday headers or query params; per-operation headers such as `Authorization` stay optional kwargs on each method. OData-style query params like `$filter` are exposed as string kwargs with the `$` stripped (e.g. `filter:`).
+
+When a JSON media type omits `schema` but includes an `example` (common in some vendor specs), the generator **synthesizes** a `T::Struct` from that example by default so callers still get typed `body:` kwargs and `to_wire` / `from_wire`. Disable with `--no-synthesize-from-examples`.
 
 ## Scope: JSON envelope only
 

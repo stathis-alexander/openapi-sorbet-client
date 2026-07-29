@@ -4,13 +4,18 @@ require "thor"
 
 module OpenapiSorbetClient
   class CLI < Thor
-    desc "generate", "Generate a Faraday/Sorbet client gem from an OpenAPI 3 spec"
+    desc "generate", "Generate a Faraday/Sorbet client gem from an OpenAPI 2/3 spec"
     method_option :spec, type: :string, required: true
     method_option :output, type: :string, required: true
     method_option :module, type: :string, required: true
     method_option :"gem-name", type: :string, required: true
+    method_option :"synthesize-from-examples", type: :boolean, default: true,
+                  desc: "When a media type has no schema, infer one from example/examples (default: true)"
     def generate
-      document = Parser.parse(options[:spec])
+      document = Parser.parse(
+        options[:spec],
+        synthesize_from_examples: options[:"synthesize-from-examples"] != false
+      )
       Emitter.new(
         document: document,
         output: options[:output],
