@@ -3,6 +3,7 @@
 require "json"
 require "psych"
 require "set"
+require "uri"
 
 module OpenapiSorbetClient
   class Parser
@@ -41,18 +42,33 @@ module OpenapiSorbetClient
       @schema_definitions = source.dig("components", "schemas") || {}
       @schema_definitions.each_key { |name| component_schema(name) }
 
+      servers = Array(source["servers"]).filter_map { |server| server["url"] }
+
       IR::Document.new(
         title: source.dig("info", "title"),
         version: source.dig("info", "version"),
-        servers: Array(source["servers"]).filter_map { |server| server["url"] },
+        servers: servers,
         schemas: @schemas,
-        operations: parse_operations(source["paths"] || {}),
+        operations: parse_operations(source["paths"] || {}, base_path: server_base_path(servers.first)),
         security_schemes: parse_security_schemes(source.dig("components", "securitySchemes") || {}),
         default_security: parse_security_requirements(source["security"])
       )
     end
 
     private
+
+    # Callers supply `base_url` as just the host (e.g. "https://api.example.com"), matching how
+    # OpenAPI `servers[].url` is commonly documented/used elsewhere in this codebase. Any path
+    # component on the first server URL (e.g. "/taxservices/oiptax") is therefore not part of the
+    # generated request paths unless we fold it in here, so we prepend it to every operation path.
+    def server_base_path(server_url)
+      return "" unless server_url
+
+      path = URI.parse(server_url).path.to_s
+      path.chomp("/")
+    rescue URI::InvalidURIError
+      ""
+    end
 
     def load_source
       contents = File.read(@path)
@@ -94,14 +110,14 @@ module OpenapiSorbetClient
       end
     end
 
-    def parse_operations(paths)
+    def parse_operations(paths, base_path:)
       paths.flat_map do |path, path_item|
         path_parameters = Array(path_item["parameters"])
         HTTP_METHODS.filter_map do |http_method|
           definition = path_item[http_method]
           next unless definition
 
-          parse_operation(path, http_method, definition, path_parameters)
+          parse_operation("#{base_path}#{path}", http_method, definition, path_parameters)
         end
       end
     end

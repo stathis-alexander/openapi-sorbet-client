@@ -50,12 +50,26 @@ module OpenapiSorbetClient
 
     Operation = Struct.new(
       :operation_id, :method_name, :http_method, :path, :summary, :parameters,
-      :request_body, :success_response, :error_responses, :tags,
+      :request_body, :success_response, :error_responses, :tags, :odata_filter,
       keyword_init: true
     )
     # http_method: "get" | "post" | ...
     # success_response: first 2xx Response (prefer 200)
     # error_responses: Array[Response]
+    # odata_filter: optional ODataFilter override describing a typed $filter builder to emit
+
+    ODataFilter = Struct.new(
+      :param_name, :fields,
+      keyword_init: true
+    )
+    # param_name: the existing string kwarg this builds a value for (usually "filter")
+    # fields: Array[ODataFilterField], in the order they should appear in the generated method signature
+
+    ODataFilterField = Struct.new(
+      :name, :wire_name, :required,
+      keyword_init: true
+    )
+    # name: snake_case Ruby kwarg (e.g. "client_id"); wire_name: correct OData field name (e.g. "ClientID")
 
     SecurityScheme = Struct.new(
       :name, :type, :api_key_name, :location, :description,

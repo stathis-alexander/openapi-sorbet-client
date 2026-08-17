@@ -53,7 +53,7 @@ RSpec.describe "trimmed OIP Tax fixture integration", :aggregate_failures do
         .to eq("ConfigurationXml")
 
       stubs = Faraday::Adapter::Test::Stubs.new
-      stubs.get("/api/v1/Returns") do |env|
+      stubs.get("/taxservices/oiptax/api/v1/Returns") do |env|
         expect(env.request_headers["IntegratorKey"]).to eq("ik")
         expect(env.params["subscription-key"]).to eq("sk")
         expect(env.params["$filter"]).to eq("TaxYear eq '2021'")
@@ -73,7 +73,7 @@ RSpec.describe "trimmed OIP Tax fixture integration", :aggregate_failures do
         ]
       end
 
-      stubs.post("/api/v1/CalculateReturn") do |env|
+      stubs.post("/taxservices/oiptax/api/v1/CalculateReturn") do |env|
         wire = JSON.parse(env.body)
         expect(wire).to include(
           "ConfigurationXml" => "<TaxCalculateReturnOptions/>",
@@ -96,12 +96,12 @@ RSpec.describe "trimmed OIP Tax fixture integration", :aggregate_failures do
         ]
       end
 
-      connection = Faraday.new(url: "https://api.cchaxcess.com/taxservices/oiptax") do |faraday|
+      connection = Faraday.new(url: "https://api.cchaxcess.com") do |faraday|
         faraday.adapter(:test, stubs)
       end
 
       client = OipTaxTrimmed::Client.new(
-        base_url: "https://api.cchaxcess.com/taxservices/oiptax",
+        base_url: "https://api.cchaxcess.com",
         integrator_key: "ik",
         subscription_key: "sk",
         connection: connection

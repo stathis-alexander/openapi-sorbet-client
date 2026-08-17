@@ -293,7 +293,57 @@ module OpenapiSorbetClient
       lines.concat(operation_method_body(operation, params).map { |line| "      #{line}" })
       lines << "    end"
       lines << ""
+
+      lines << render_odata_filter_method(operation, params) if operation.odata_filter
+
       lines.join("\n")
+    end
+
+    # Emits a typed sibling method that assembles the operation's raw string $filter param from
+    # kwargs, using field names from the overrides file rather than the (possibly wrong) ones in
+    # the vendor spec's prose/examples. The underlying string-based method stays available too.
+    def render_odata_filter_method(operation, params)
+      filter = operation.odata_filter
+      other_params = params.reject { |param| param[:name] == filter.param_name }
+      filter_fields = filter.fields
+
+      lines = []
+      lines << "sig do"
+      lines << "  params("
+      sig_entries = filter_fields.map do |field|
+        type = field.required ? "String" : "T.nilable(String)"
+        "#{field.name}: #{type}"
+      end
+      sig_entries += other_params.map do |param|
+        "#{param[:name]}: #{param[:type]}"
+      end
+      sig_entries.each_with_index do |entry, index|
+        comma = index == sig_entries.length - 1 ? "" : ","
+        lines << "    #{entry}#{comma}"
+      end
+      lines << "  ).returns(#{client_success_type(operation)})"
+      lines << "end"
+
+      def_args = filter_fields.map do |field|
+        field.required ? "#{field.name}:" : "#{field.name}: nil"
+      end
+      def_args += other_params.map do |param|
+        param[:required] ? "#{param[:name]}:" : "#{param[:name]}: nil"
+      end
+      lines << "def #{operation.method_name}_by_#{filter.param_name}(#{def_args.join(', ')})"
+
+      lines << "  #{filter.param_name}_clauses = ["
+      filter_fields.each do |field|
+        lines << "    (#{field.name} ? #{field.wire_name.inspect} + \" eq '\" + #{field.name} + \"'\" : nil),"
+      end
+      lines << "  ].compact"
+      lines << "  #{operation.method_name}("
+      lines << "    #{filter.param_name}: #{filter.param_name}_clauses.join(\" and \"),"
+      other_params.each { |param| lines << "    #{param[:name]}: #{param[:name]}," }
+      lines << "  )"
+      lines << "end"
+
+      lines.map { |line| "    #{line}" }.join("\n")
     end
 
     def operation_method_params(operation)
