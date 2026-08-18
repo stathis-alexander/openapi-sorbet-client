@@ -1,0 +1,37 @@
+# Corrections for cases where CCH's OIP Tax Services v2 spec (oip-tax-service.yaml) doesn't match
+# the live API's actual behavior. See lib/openapi_sorbet_client/overrides.rb for the mechanism.
+
+odata_filters:
+  get-returns:
+    param: filter
+    fields:
+      # TaxYear is the only field CCH documents as required.
+      - name: tax_year
+        wire_name: TaxYear
+        required: true
+      # Spec examples and prose consistently write `ClientId`, but the live API rejects it:
+      # "Could not find a property named 'ClientId' on type
+      # 'Cch.OIPRest.TaxService.Models.GetReturnsParam'." Confirmed correct casing is `ClientID`.
+      # Verified 2026-08-17 against the CCH sandbox.
+      - name: client_id
+        wire_name: ClientID
+      - name: return_status
+        wire_name: ReturnStatus
+      - name: return_group_name
+        wire_name: ReturnGroupName
+      - name: return_type
+        wire_name: ReturnType
+      - name: office_name
+        wire_name: OfficeName
+      - name: business_unit_name
+        wire_name: BusinessUnitName
+
+# TaxReturnInfo isn't the real schema this constraint belongs to (that's ReturnSaveAsRequest,
+# not present in this trimmed fixture) but the constraint itself is real: CCH enforces a 30
+# character limit on return description fields and rejects longer values with
+# "Maximum character limit is 30 for return description" — undocumented in the spec.
+# Verified 2026-08-17 against the CCH sandbox.
+schema_constraints:
+  TaxReturnInfo:
+    description:
+      max_length: 30

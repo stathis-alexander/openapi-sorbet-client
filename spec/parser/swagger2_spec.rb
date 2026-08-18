@@ -23,7 +23,7 @@ RSpec.describe "OpenAPI 2 / Swagger support" do
 
     get_pet = document.operations.find { |op| op.method_name == "get_pet" }
     expect(get_pet.http_method).to eq("get")
-    expect(get_pet.path).to eq("/pets/{petId}")
+    expect(get_pet.path).to eq("/v2/pets/{petId}")
     expect(get_pet.parameters.map(&:name)).to eq(["pet_id"])
     expect(get_pet.parameters.first.location).to eq(:path)
     expect(get_pet.success_response.schema.name).to eq("Pet")
@@ -58,13 +58,13 @@ RSpec.describe "OpenAPI 2 / Swagger support" do
         require "legacy_pets_client"
 
         stubs = Faraday::Adapter::Test::Stubs.new
-        stubs.get("/pets/42") do |env|
+        stubs.get("/v2/pets/42") do |env|
           expect(env.request_headers["api_key"]).to eq("secret")
           [200, { "Content-Type" => "application/json" }, '{"id":42,"name":"Fido"}']
         end
         connection = Faraday.new { |f| f.adapter(:test, stubs) }
         client = LegacyPets::Client.new(
-          base_url: "https://petstore.example.com/v2",
+          base_url: "https://petstore.example.com",
           api_key: "secret",
           connection: connection
         )

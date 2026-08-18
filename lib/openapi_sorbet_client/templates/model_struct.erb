@@ -38,6 +38,31 @@ module <%= module_name %>
         T::Hash[Symbol, T::Boolean]
       )
 
+<% constrained_properties = schema.properties.select { |property| property.max_length } -%>
+<% if constrained_properties.any? -%>
+      # Constraints the live API enforces but its OpenAPI spec doesn't declare. See the
+      # overrides file this gem was generated with for the observed behavior behind each one.
+      WIRE_MAX_LENGTH_MAP = T.let(
+        {
+<% constrained_properties.each do |property| -%>
+          <%= property.name %>: <%= property.max_length %>,
+<% end -%>
+        }.freeze,
+        T::Hash[Symbol, Integer]
+      )
+
+      #: (**untyped) -> void
+      def initialize(**kwargs)
+        super
+        WIRE_MAX_LENGTH_MAP.each do |field, max_length|
+          value = public_send(field)
+          next unless value.is_a?(String) && value.length > max_length
+
+          raise ArgumentError, "#{field} is #{value.length} characters, exceeds the #{max_length} character limit enforced by the API"
+        end
+      end
+<% end -%>
+
       sig do
         params(payload: T::Hash[String, T.untyped])
           .returns(<%= OpenapiSorbetClient::Naming.schema_class_name(schema.name) %>)
