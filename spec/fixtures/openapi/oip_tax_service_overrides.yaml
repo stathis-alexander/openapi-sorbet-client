@@ -1,5 +1,7 @@
-# Corrections for cases where CCH's OIP Tax Services v2 spec (oip-tax-service.yaml) doesn't match
-# the live API's actual behavior. See lib/openapi_sorbet_client/overrides.rb for the mechanism.
+# Corrections for cases where CCH's OIP Tax Services v2 spec (~/Downloads/oip-tax-service.yaml,
+# not committed to this repo — see README) doesn't match the live API's actual behavior.
+# See lib/openapi_sorbet_client/overrides.rb for the mechanism. Every entry here was verified
+# against the CCH sandbox on 2026-08-17 using return 2025I:TestClientId:V1.
 
 odata_filters:
   get-returns:
@@ -12,7 +14,6 @@ odata_filters:
       # Spec examples and prose consistently write `ClientId`, but the live API rejects it:
       # "Could not find a property named 'ClientId' on type
       # 'Cch.OIPRest.TaxService.Models.GetReturnsParam'." Confirmed correct casing is `ClientID`.
-      # Verified 2026-08-17 against the CCH sandbox.
       - name: client_id
         wire_name: ClientID
       - name: return_status
@@ -26,12 +27,10 @@ odata_filters:
       - name: business_unit_name
         wire_name: BusinessUnitName
 
-# TaxReturnInfo isn't the real schema this constraint belongs to (that's ReturnSaveAsRequest,
-# not present in this trimmed fixture) but the constraint itself is real: CCH enforces a 30
-# character limit on return description fields and rejects longer values with
-# "Maximum character limit is 30 for return description" — undocumented in the spec.
-# Verified 2026-08-17 against the CCH sandbox.
 schema_constraints:
-  TaxReturnInfo:
+  # POST /api/v1/ReturnSaveAs: the spec declares Description as an unconstrained optional
+  # string, but CCH enforces a 30 character limit and rejects longer values with
+  # "Maximum character limit is 30 for return description".
+  ReturnSaveAsRequest:
     description:
       max_length: 30

@@ -19,6 +19,11 @@ module OpenapiSorbetClient
   #           required: true
   #         - name: client_id
   #           wire_name: ClientID
+  #
+  #   schema_constraints:
+  #     <SchemaName>:
+  #       <property_name>:            # snake_case Ruby prop name
+  #         max_length: 30            # live API enforces this; spec doesn't declare it
   class Overrides
     class << self
       def load(path)
@@ -32,6 +37,7 @@ module OpenapiSorbetClient
       @odata_filters = (source["odata_filters"] || {}).to_h do |operation_id, definition|
         [operation_id, parse_odata_filter(definition)]
       end
+      @schema_constraints = source["schema_constraints"] || {}
     end
 
     def apply(document)
@@ -42,8 +48,10 @@ module OpenapiSorbetClient
         operation.odata_filter = filter
         operation
       end
-
       document.operations = operations
+
+      document.schemas.each_value { |schema| apply_schema_constraints(schema) }
+
       document
     end
 
@@ -62,6 +70,18 @@ module OpenapiSorbetClient
         param_name: definition.fetch("param"),
         fields: fields
       )
+    end
+
+    def apply_schema_constraints(schema)
+      constraints = @schema_constraints[schema.name]
+      return if constraints.nil? || schema.properties.nil?
+
+      schema.properties.each do |property|
+        property_constraints = constraints[property.name]
+        next unless property_constraints
+
+        property.max_length = property_constraints["max_length"]
+      end
     end
   end
 end

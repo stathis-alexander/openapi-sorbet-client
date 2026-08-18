@@ -23,10 +23,11 @@ module OpenapiSorbetClient
     # one_of: Array[Schema] for unions
 
     Property = Struct.new(
-      :name, :wire_key, :schema, :required, :nullable, :description,
+      :name, :wire_key, :schema, :required, :nullable, :description, :max_length,
       keyword_init: true
     )
     # name: snake_case Ruby prop; wire_key: original JSON key
+    # max_length: optional Integer override constraint the live API enforces but the spec omits
 
     Parameter = Struct.new(
       :name, :wire_name, :location, :required, :schema, :description,

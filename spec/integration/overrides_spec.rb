@@ -75,4 +75,36 @@ RSpec.describe "overrides", :aggregate_failures do
 
     expect(document.operations.map(&:odata_filter).compact).to be_empty
   end
+
+  it "enforces an undocumented max_length constraint at struct construction" do
+    document = OpenapiSorbetClient::Parser.parse(fixture("oip_tax_trimmed.yaml"))
+    document = OpenapiSorbetClient::Overrides.load(fixture("oip_tax_overrides.yaml")).apply(document)
+
+    tax_return_info = document.schemas.fetch("TaxReturnInfo")
+    description = tax_return_info.properties.find { |property| property.name == "description" }
+    expect(description.max_length).to eq(30)
+
+    Dir.mktmpdir do |output|
+      OpenapiSorbetClient::Emitter.new(
+        document: document,
+        output: output,
+        module_name: "OipTaxConstrained",
+        gem_name: "oip_tax_constrained"
+      ).emit
+
+      root = File.join(output, "oip_tax_constrained")
+      lib = File.join(root, "lib")
+      $LOAD_PATH.unshift(lib)
+      require "oip_tax_constrained"
+
+      expect { OipTaxConstrained::Models::TaxReturnInfo.new(description: "x" * 31) }
+        .to raise_error(ArgumentError, /exceeds the 30 character limit/)
+
+      within_limit = OipTaxConstrained::Models::TaxReturnInfo.new(description: "x" * 30)
+      expect(within_limit.description).to eq("x" * 30)
+    ensure
+      $LOAD_PATH.delete(lib) if lib
+      Object.send(:remove_const, :OipTaxConstrained) if defined?(OipTaxConstrained)
+    end
+  end
 end
